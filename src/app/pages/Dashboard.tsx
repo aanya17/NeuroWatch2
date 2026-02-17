@@ -23,14 +23,6 @@ import {
 const FIREBASE_URL =
   "https://neurowatch-b3b08-default-rtdb.firebaseio.com/watch_data.json";
 
-const progressData = [
-  { date: "Jan 28", gait: 86, tremor: 91, voice: 84, muscle: 76 },
-  { date: "Jan 29", gait: 82, tremor: 85, voice: 80, muscle: 74 },
-  { date: "Jan 30", gait: 85, tremor: 90, voice: 86, muscle: 78 },
-  { date: "Jan 31", gait: 84, tremor: 88, voice: 82, muscle: 75 },
-  { date: "Feb 1", gait: 87, tremor: 92, voice: 85, muscle: 78 },
-];
-
 interface MetricCardProps {
   title: string;
   value: string;
@@ -54,6 +46,20 @@ function MetricCard({ title, value, icon }: MetricCardProps) {
 export function Dashboard() {
   const [heartRate, setHeartRate] = useState<number | null>(null);
   const [muscleMovement, setMuscleMovement] = useState<string>("--");
+  const [gait, setGait] = useState<number | null>(null); 
+  const [voice, setVoice] = useState<number | null>(null);
+  const [tremor, setTremor] = useState<string>("--");
+
+  // ✅ MOVED INSIDE COMPONENT (THIS WAS THE ERROR)
+  const progressData = [
+    {
+      date: "Now",
+      gait: gait ?? 0,
+      tremor: tremor === "Low" ? 90 : 60,
+      voice: voice ?? 0,
+      muscle: muscleMovement === "Normal" ? 85 : 60,
+    },
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,8 +68,11 @@ export function Dashboard() {
         const data = await res.json();
 
         if (data) {
-          setHeartRate(data.heartRate || null);
-          setMuscleMovement(data.muscleMovement || "--");
+          setHeartRate(data.heartRate ?? null);
+          setMuscleMovement(data.muscleMovement ?? "--");
+          setGait(data.gait ?? null);
+          setVoice(data.voice ?? null);
+          setTremor(data.tremor ?? "--");
         }
       } catch (error) {
         console.error("Firebase fetch error:", error);
