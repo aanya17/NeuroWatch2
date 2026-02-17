@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Activity, Calendar, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 
+const FIREBASE_LIFESTYLE_URL =
+  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/lifestyle";
+
 const tabs = [
   { name: 'Dashboard', path: '/dashboard' },
   { name: 'Gait', path: '/gait' },
@@ -13,58 +16,50 @@ const tabs = [
   { name: 'Profile', path: '/profile' },
 ];
 
-const FIREBASE_HISTORY_URL =
-  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/history";
-
 interface DailyRecord {
   date: string;
-  gaitScore: number;
-  tremorLevel: number;
-  voiceStability: number;
-  heartRate: number;
+  breakfast: string;
+  lunch: string;
+  snack: string;
+  dinner: string;
   sleepHours: number;
-  steps: number;
-  medications: { name: string; dosage: string; time: string }[];
-  symptoms: string[];
-  activities: string[];
-  meals: { type: string; description: string; time: string }[];
-  notes: string;
+  activity: string;
 }
 
 export function History() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('History');
+  const [records, setRecords] = useState<DailyRecord[]>([]);
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set());
-  const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    if (!userId) {
-      navigate("/");
-      return;
-    }
-
-    fetch(`${FIREBASE_HISTORY_URL}/${userId}.json`)
-      .then(res => res.json())
-      .then(data => {
-        if (data) {
-          const recordsArray = Object.values(data) as DailyRecord[];
-          setDailyRecords(recordsArray.reverse());
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [navigate]);
-
-  if (loading) {
-    return <div className="p-10">Loading history...</div>;
-  }
 
   const handleTabClick = (tab: typeof tabs[0]) => {
     setActiveTab(tab.name);
     navigate(tab.path);
   };
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+        if (!user?.username) return;
+
+        const res = await fetch(
+          `${FIREBASE_LIFESTYLE_URL}/${user.username}.json`
+        );
+
+        const data = await res.json();
+
+        if (data) {
+          setRecords([data]); // since we used PUT (single record)
+        }
+      } catch (error) {
+        console.error("Error fetching history:", error);
+      }
+    };
+
+    fetchHistory();
+  }, []);
 
   const toggleRecord = (date: string) => {
     const newExpanded = new Set(expandedRecords);
@@ -76,19 +71,18 @@ export function History() {
     setExpandedRecords(newExpanded);
   };
 
-  const getComparisonIcon = (current: number, previous: number) => {
-    if (current > previous) return <TrendingUp className="w-4 h-4 text-[#22C55E]" />;
-    if (current < previous) return <TrendingDown className="w-4 h-4 text-[#EF4444]" />;
-    return <Minus className="w-4 h-4 text-[#64748B]" />;
-  };
-
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   const handleExportReport = () => {
-    alert('Downloading detailed patient report for doctor review...');
+    alert('Downloading patient report...');
   };
 
   return (
@@ -101,16 +95,16 @@ export function History() {
               <div className="w-10 h-10 bg-[#2563EB] rounded-lg flex items-center justify-center">
                 <Activity className="w-5 h-5 text-white" />
               </div>
-              <span className="text-[#0F172A] text-xl" style={{ fontWeight: 600 }}>NeuroWatch</span>
+              <span className="text-[#0F172A] text-xl font-semibold">NeuroWatch</span>
             </div>
           </div>
 
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex gap-1">
             {tabs.map((tab) => (
               <button
                 key={tab.name}
                 onClick={() => handleTabClick(tab)}
-                className={`px-5 py-3 transition-colors whitespace-nowrap ${
+                className={`px-5 py-3 transition-colors ${
                   activeTab === tab.name
                     ? 'text-[#2563EB] border-b-2 border-[#2563EB]'
                     : 'text-[#64748B] hover:text-[#0F172A]'
@@ -123,57 +117,62 @@ export function History() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      {/* Main */}
+      <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-[#0F172A] text-3xl mb-2" style={{ fontWeight: 600 }}>Daily Health History</h1>
-            <p className="text-[#64748B]">Detailed records for doctor review and progress tracking</p>
+            <h1 className="text-[#0F172A] text-3xl font-semibold">Lifestyle History</h1>
+            <p className="text-[#64748B]">Your saved lifestyle records</p>
           </div>
+
           <button
             onClick={handleExportReport}
-            className="flex items-center gap-2 px-6 py-3 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors"
+            className="flex items-center gap-2 px-6 py-3 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8]"
           >
             <Download className="w-5 h-5" />
             Export Report
           </button>
         </div>
 
-        <div className="space-y-4">
-          {dailyRecords.map((record, index) => {
+        {records.length === 0 ? (
+          <div className="bg-white p-6 rounded-xl border border-[#E2E8F0]">
+            No records found.
+          </div>
+        ) : (
+          records.map((record) => {
             const isExpanded = expandedRecords.has(record.date);
-            const previousRecord = dailyRecords[index + 1];
 
             return (
-              <div key={record.date} className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] overflow-hidden">
+              <div key={record.date} className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] mb-4">
                 <div
                   onClick={() => toggleRecord(record.date)}
-                  className="p-6 cursor-pointer hover:bg-[#F8FAFC] transition-colors"
+                  className="p-6 cursor-pointer hover:bg-[#F8FAFC]"
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <Calendar className="w-5 h-5 text-[#2563EB]" />
-                      <h3 className="text-[#0F172A] text-lg" style={{ fontWeight: 600 }}>
+                      <h3 className="text-lg font-semibold text-[#0F172A]">
                         {formatDate(record.date)}
                       </h3>
                     </div>
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-[#64748B]" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-[#64748B]" />
-                    )}
+                    {isExpanded ? <ChevronUp /> : <ChevronDown />}
                   </div>
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t border-[#E2E8F0] p-6">
-                    <p className="text-[#0F172A]">Notes: {record.notes}</p>
+                  <div className="border-t border-[#E2E8F0] p-6 space-y-4">
+                    <div><strong>Breakfast:</strong> {record.breakfast}</div>
+                    <div><strong>Lunch:</strong> {record.lunch}</div>
+                    <div><strong>Snack:</strong> {record.snack}</div>
+                    <div><strong>Dinner:</strong> {record.dinner}</div>
+                    <div><strong>Sleep Hours:</strong> {record.sleepHours} hrs</div>
+                    <div><strong>Activity:</strong> {record.activity}</div>
                   </div>
                 )}
               </div>
             );
-          })}
-        </div>
+          })
+        )}
       </div>
     </div>
   );
