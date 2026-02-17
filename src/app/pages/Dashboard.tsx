@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { onValue, ref } from "firebase/database";
 import { database } from "../../firebase";
+
 import {
   Activity,
   Heart,
@@ -11,6 +12,7 @@ import {
   Watch,
   Lightbulb,
 } from "lucide-react";
+
 import {
   LineChart,
   Line,
@@ -21,8 +23,6 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-
-
 
 interface MetricCardProps {
   title: string;
@@ -47,37 +47,37 @@ function MetricCard({ title, value, icon }: MetricCardProps) {
 export function Dashboard() {
   const [heartRate, setHeartRate] = useState<number | null>(null);
   const [muscleMovement, setMuscleMovement] = useState<string>("--");
-  const [gait, setGait] = useState<number | null>(null); 
+  const [gait, setGait] = useState<number | null>(null);
   const [voice, setVoice] = useState<number | null>(null);
   const [tremor, setTremor] = useState<string>("--");
 
-  // ✅ MOVED INSIDE COMPONENT (THIS WAS THE ERROR)
+  useEffect(() => {
+    const watchRef = ref(database, "watch_data");
+
+    const unsubscribe = onValue(watchRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setGait(data.gait ?? null);
+        setHeartRate(data.heartRate ?? null);
+        setMuscleMovement(data.muscleMovement ?? "--");
+        setTremor(data.tremor ?? "--");
+        setVoice(data.voice ?? null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Chart Data (Live)
   const progressData = [
     {
       date: "Now",
       gait: gait ?? 0,
-      tremor: tremor === "Low" ? 90 : 60,
+      tremor: tremor === "Low" ? 90 : tremor === "High" ? 40 : 70,
       voice: voice ?? 0,
       muscle: muscleMovement === "Normal" ? 85 : 60,
     },
   ];
-
-  useEffect(() => {
-  const watchRef = ref(database, "watch_data");
-
-  const unsubscribe = onValue(watchRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      setGait(data.gait);
-      setHeartRate(data.heartRate);
-      setMuscleMovement(data.muscleMovement);
-      setTremor(data.tremor);
-      setVoice(data.voice);
-    }
-  });
-
-  return () => unsubscribe();
-}, []);
 
   return (
     <div
@@ -89,27 +89,38 @@ export function Dashboard() {
       </h1>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
+
         <MetricCard
           title="Gait Score"
-          value="87"
+          value={gait !== null ? gait.toString() : "--"}
           icon={<Footprints size={18} />}
         />
+
         <MetricCard
           title="Muscle Movement"
           value={muscleMovement}
           icon={<Activity size={18} />}
         />
+
         <MetricCard
           title="Heart Rate"
           value={heartRate ? `${heartRate} bpm` : "--"}
           icon={<Heart size={18} />}
         />
+
         <MetricCard
-          title="Risk Level"
-          value="Medium"
-          icon={<AlertCircle size={18} />}
+          title="Voice Score"
+          value={voice !== null ? voice.toString() : "--"}
+          icon={<Brain size={18} />}
         />
+
+        <MetricCard
+          title="Tremor Level"
+          value={tremor}
+          icon={<Watch size={18} />}
+        />
+
       </div>
 
       {/* Progress Chart */}
@@ -148,17 +159,17 @@ export function Dashboard() {
         <div className="space-y-4 text-[#0F172A]">
           <p className="flex items-start gap-2">
             <TrendingUp size={16} className="text-green-500 mt-1" />
-            Your gait score has improved this week. Keep up the walking routine.
+            Your gait score updates in real time from the smartwatch.
           </p>
 
           <p className="flex items-start gap-2">
             <Watch size={16} className="text-blue-500 mt-1" />
-            Sync smartwatch frequently for accurate tremor monitoring.
+            Tremor and muscle data are synced directly from Firebase.
           </p>
 
           <p className="flex items-start gap-2">
             <Heart size={16} className="text-red-500 mt-1" />
-            Heart rate is stable. Maintain your current exercise level.
+            Heart rate monitoring is active and live.
           </p>
         </div>
       </div>
