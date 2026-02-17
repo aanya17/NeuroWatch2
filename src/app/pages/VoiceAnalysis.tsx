@@ -5,7 +5,7 @@ import { Activity, Upload, TrendingUp } from "lucide-react";
 const FIREBASE_VOICE_URL =
   "https://neurowatch-b3b08-default-rtdb.firebaseio.com/watch_data";
 
-export function Voice() {
+export function VoiceAnalysis() {
   const navigate = useNavigate();
   const [fileName, setFileName] = useState("");
   const [analyzed, setAnalyzed] = useState(false);
