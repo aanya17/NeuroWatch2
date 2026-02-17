@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { onValue, ref } from "firebase/database";
+import { database } from "../../firebase";
 import {
   Activity,
   Heart,
@@ -20,8 +22,7 @@ import {
   Legend,
 } from "recharts";
 
-const FIREBASE_URL =
-  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/watch_data.json";
+
 
 interface MetricCardProps {
   title: string;
@@ -62,27 +63,21 @@ export function Dashboard() {
   ];
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch(FIREBASE_URL);
-        const data = await res.json();
+  const watchRef = ref(database, "watch_data");
 
-        if (data) {
-          setHeartRate(data.heartRate ?? null);
-          setMuscleMovement(data.muscleMovement ?? "--");
-          setGait(data.gait ?? null);
-          setVoice(data.voice ?? null);
-          setTremor(data.tremor ?? "--");
-        }
-      } catch (error) {
-        console.error("Firebase fetch error:", error);
-      }
-    };
+  const unsubscribe = onValue(watchRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      setGait(data.gait);
+      setHeartRate(data.heartRate);
+      setMuscleMovement(data.muscleMovement);
+      setTremor(data.tremor);
+      setVoice(data.voice);
+    }
+  });
 
-    fetchData();
-    const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  return () => unsubscribe();
+}, []);
 
   return (
     <div
