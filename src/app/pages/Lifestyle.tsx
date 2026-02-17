@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Activity, Save, Coffee, Salad, Apple, Utensils, Moon, TrendingUp } from 'lucide-react';
 
+const FIREBASE_LIFESTYLE_URL =
+  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/lifestyle";
+
 const tabs = [
   { name: 'Dashboard', path: '/dashboard' },
   { name: 'Gait', path: '/gait' },
@@ -12,9 +15,6 @@ const tabs = [
   { name: 'Appointments', path: '/appointments' },
   { name: 'Support', path: '/support' },
 ];
-
-const FIREBASE_LIFESTYLE_URL =
-  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/lifestyle";
 
 export function Lifestyle() {
   const navigate = useNavigate();
@@ -32,41 +32,45 @@ export function Lifestyle() {
   };
 
   const handleSave = async () => {
-    const userId = localStorage.getItem("userId");
-
-    if (!userId) {
-      alert("User not logged in");
-      navigate("/");
-      return;
-    }
-
-    const lifestyleData = {
-      date: new Date().toISOString().split("T")[0],
-      breakfast,
-      lunch,
-      snack,
-      dinner,
-      sleepHours,
-      activity,
-    };
-
     try {
-      await fetch(`${FIREBASE_LIFESTYLE_URL}/${userId}.json`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(lifestyleData),
-      });
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-      alert('Lifestyle data saved successfully!');
+      if (!user?.username) {
+        alert("User not found. Please login again.");
+        return;
+      }
+
+      const lifestyleData = {
+        breakfast,
+        lunch,
+        snack,
+        dinner,
+        sleepHours,
+        activity,
+        date: new Date().toISOString().split("T")[0],
+      };
+
+      await fetch(
+        `${FIREBASE_LIFESTYLE_URL}/${user.username}.json`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(lifestyleData),
+        }
+      );
+
+      alert("Lifestyle data saved successfully!");
     } catch (error) {
-      alert("Error saving lifestyle data");
+      console.error("Error saving lifestyle:", error);
+      alert("Failed to save lifestyle data");
     }
   };
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F8FAFC', fontFamily: 'Inter, sans-serif' }}>
+      {/* Top Navigation */}
       <div className="bg-white shadow-sm border-b border-[#E2E8F0]">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
@@ -78,6 +82,7 @@ export function Lifestyle() {
             </div>
           </div>
 
+          {/* Tabs */}
           <div className="flex gap-1">
             {tabs.map((tab) => (
               <button
@@ -96,12 +101,14 @@ export function Lifestyle() {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-[#0F172A] text-3xl mb-2" style={{ fontWeight: 600 }}>Lifestyle Tracking</h1>
           <p className="text-[#64748B]">Log your daily meals, sleep, and activities</p>
         </div>
 
+        {/* Meals Section */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-[#E2E8F0] mb-6">
           <div className="flex items-center gap-2 mb-6">
             <Utensils className="w-5 h-5 text-[#2563EB]" />
@@ -109,18 +116,70 @@ export function Lifestyle() {
           </div>
 
           <div className="space-y-4">
-            <input type="text" value={breakfast} onChange={(e) => setBreakfast(e.target.value)} className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg" placeholder="Breakfast" />
-            <input type="text" value={lunch} onChange={(e) => setLunch(e.target.value)} className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg" placeholder="Lunch" />
-            <input type="text" value={snack} onChange={(e) => setSnack(e.target.value)} className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg" placeholder="Snack" />
-            <input type="text" value={dinner} onChange={(e) => setDinner(e.target.value)} className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg" placeholder="Dinner" />
+            <div>
+              <label className="flex items-center gap-2 text-[#0F172A] mb-2">
+                <Coffee className="w-4 h-4 text-[#F59E0B]" />
+                Breakfast
+              </label>
+              <input
+                type="text"
+                value={breakfast}
+                onChange={(e) => setBreakfast(e.target.value)}
+                className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-[#0F172A] mb-2">
+                <Salad className="w-4 h-4 text-[#22C55E]" />
+                Lunch
+              </label>
+              <input
+                type="text"
+                value={lunch}
+                onChange={(e) => setLunch(e.target.value)}
+                className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-[#0F172A] mb-2">
+                <Apple className="w-4 h-4 text-[#EF4444]" />
+                Snack
+              </label>
+              <input
+                type="text"
+                value={snack}
+                onChange={(e) => setSnack(e.target.value)}
+                className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-[#0F172A] mb-2">
+                <Utensils className="w-4 h-4 text-[#8B5CF6]" />
+                Dinner
+              </label>
+              <input
+                type="text"
+                value={dinner}
+                onChange={(e) => setDinner(e.target.value)}
+                className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent"
+              />
+            </div>
           </div>
         </div>
 
+        {/* Sleep Section */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-[#E2E8F0] mb-6">
           <div className="flex items-center gap-2 mb-6">
             <Moon className="w-5 h-5 text-[#2563EB]" />
             <h2 className="text-[#0F172A] text-xl" style={{ fontWeight: 600 }}>Sleep</h2>
           </div>
+
+          <label className="block text-[#0F172A] mb-3">
+            Sleep Hours: <span style={{ fontWeight: 600 }}>{sleepHours} hours</span>
+          </label>
 
           <input
             type="range"
@@ -130,10 +189,11 @@ export function Lifestyle() {
             value={sleepHours}
             onChange={(e) => setSleepHours(parseFloat(e.target.value))}
             className="w-full"
+            style={{ accentColor: '#2563EB' }}
           />
-          <p className="mt-2 text-[#0F172A]">{sleepHours} hours</p>
         </div>
 
+        {/* Activity Section */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-[#E2E8F0] mb-6">
           <div className="flex items-center gap-2 mb-6">
             <TrendingUp className="w-5 h-5 text-[#2563EB]" />
@@ -143,7 +203,7 @@ export function Lifestyle() {
           <select
             value={activity}
             onChange={(e) => setActivity(e.target.value)}
-            className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg bg-white"
+            className="w-full px-4 py-3 border border-[#E2E8F0] rounded-lg"
           >
             <option value="Walking">Walking</option>
             <option value="Running">Running</option>
@@ -155,6 +215,7 @@ export function Lifestyle() {
           </select>
         </div>
 
+        {/* Save Button */}
         <button
           onClick={handleSave}
           className="w-full flex items-center justify-center gap-2 bg-[#2563EB] text-white py-4 rounded-lg hover:bg-[#1d4ed8] transition-colors"
