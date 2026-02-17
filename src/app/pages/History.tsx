@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Activity, Calendar, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 
@@ -13,6 +13,9 @@ const tabs = [
   { name: 'Profile', path: '/profile' },
 ];
 
+const FIREBASE_HISTORY_URL =
+  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/history";
+
 interface DailyRecord {
   date: string;
   gaitScore: number;
@@ -26,121 +29,37 @@ interface DailyRecord {
   activities: string[];
   meals: { type: string; description: string; time: string }[];
   notes: string;
-  expanded?: boolean;
 }
-
-const dailyRecords: DailyRecord[] = [
-  {
-    date: '2026-02-01',
-    gaitScore: 87,
-    tremorLevel: 92,
-    voiceStability: 85,
-    heartRate: 72,
-    sleepHours: 7.5,
-    steps: 8234,
-    medications: [
-      { name: 'Levodopa', dosage: '100mg', time: '8:00 AM' },
-      { name: 'Carbidopa', dosage: '25mg', time: '8:00 AM' },
-    ],
-    symptoms: ['Slight morning stiffness', 'Improved by midday'],
-    activities: ['30 min morning walk', '15 min stretching exercises'],
-    meals: [
-      { type: 'Breakfast', description: 'Oatmeal with berries, green tea', time: '8:30 AM' },
-      { type: 'Lunch', description: 'Grilled chicken salad, water', time: '12:30 PM' },
-      { type: 'Dinner', description: 'Baked salmon with vegetables', time: '6:30 PM' },
-    ],
-    notes: 'Good day overall. Morning stiffness resolved after walk. Feeling energetic.',
-  },
-  {
-    date: '2026-01-31',
-    gaitScore: 84,
-    tremorLevel: 88,
-    voiceStability: 82,
-    heartRate: 75,
-    sleepHours: 6.5,
-    steps: 6547,
-    medications: [
-      { name: 'Levodopa', dosage: '100mg', time: '8:00 AM' },
-      { name: 'Carbidopa', dosage: '25mg', time: '8:00 AM' },
-    ],
-    symptoms: ['Mild tremor in right hand', 'Slightly fatigued'],
-    activities: ['20 min walk', 'Physical therapy session'],
-    meals: [
-      { type: 'Breakfast', description: 'Scrambled eggs, whole wheat toast', time: '8:00 AM' },
-      { type: 'Lunch', description: 'Turkey sandwich, apple', time: '1:00 PM' },
-      { type: 'Dinner', description: 'Pasta with marinara sauce', time: '7:00 PM' },
-    ],
-    notes: 'Slightly tired today. Physical therapy session went well.',
-  },
-  {
-    date: '2026-01-30',
-    gaitScore: 85,
-    tremorLevel: 90,
-    voiceStability: 86,
-    heartRate: 70,
-    sleepHours: 8.0,
-    steps: 9120,
-    medications: [
-      { name: 'Levodopa', dosage: '100mg', time: '8:00 AM' },
-      { name: 'Carbidopa', dosage: '25mg', time: '8:00 AM' },
-    ],
-    symptoms: ['No significant symptoms'],
-    activities: ['45 min walk in park', '20 min yoga'],
-    meals: [
-      { type: 'Breakfast', description: 'Greek yogurt with granola', time: '8:15 AM' },
-      { type: 'Lunch', description: 'Quinoa bowl with vegetables', time: '12:00 PM' },
-      { type: 'Dinner', description: 'Grilled chicken with sweet potato', time: '6:00 PM' },
-    ],
-    notes: 'Excellent day! Good sleep and active morning. Feeling strong.',
-  },
-  {
-    date: '2026-01-29',
-    gaitScore: 82,
-    tremorLevel: 85,
-    voiceStability: 80,
-    heartRate: 78,
-    sleepHours: 6.0,
-    steps: 5234,
-    medications: [
-      { name: 'Levodopa', dosage: '100mg', time: '8:00 AM' },
-      { name: 'Carbidopa', dosage: '25mg', time: '8:00 AM' },
-    ],
-    symptoms: ['Increased tremor', 'Difficulty with fine motor skills'],
-    activities: ['Short 15 min walk'],
-    meals: [
-      { type: 'Breakfast', description: 'Cereal with milk', time: '9:00 AM' },
-      { type: 'Lunch', description: 'Soup and crackers', time: '1:30 PM' },
-      { type: 'Dinner', description: 'Takeout pizza', time: '8:00 PM' },
-    ],
-    notes: 'Not feeling great today. Poor sleep affected energy levels.',
-  },
-  {
-    date: '2026-01-28',
-    gaitScore: 86,
-    tremorLevel: 91,
-    voiceStability: 84,
-    heartRate: 71,
-    sleepHours: 7.0,
-    steps: 7890,
-    medications: [
-      { name: 'Levodopa', dosage: '100mg', time: '8:00 AM' },
-      { name: 'Carbidopa', dosage: '25mg', time: '8:00 AM' },
-    ],
-    symptoms: ['Minor morning stiffness'],
-    activities: ['30 min walk', '10 min balance exercises'],
-    meals: [
-      { type: 'Breakfast', description: 'Smoothie with protein powder', time: '8:00 AM' },
-      { type: 'Lunch', description: 'Chicken wrap with salad', time: '12:30 PM' },
-      { type: 'Dinner', description: 'Stir-fry with brown rice', time: '6:30 PM' },
-    ],
-    notes: 'Solid day. Balance exercises helping with stability.',
-  },
-];
 
 export function History() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('History');
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set());
+  const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      navigate("/");
+      return;
+    }
+
+    fetch(`${FIREBASE_HISTORY_URL}/${userId}.json`)
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          const recordsArray = Object.values(data) as DailyRecord[];
+          setDailyRecords(recordsArray.reverse());
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [navigate]);
+
+  if (loading) {
+    return <div className="p-10">Loading history...</div>;
+  }
 
   const handleTabClick = (tab: typeof tabs[0]) => {
     setActiveTab(tab.name);
@@ -185,8 +104,7 @@ export function History() {
               <span className="text-[#0F172A] text-xl" style={{ fontWeight: 600 }}>NeuroWatch</span>
             </div>
           </div>
-          
-          {/* Tabs */}
+
           <div className="flex gap-1 overflow-x-auto">
             {tabs.map((tab) => (
               <button
@@ -221,27 +139,6 @@ export function History() {
           </button>
         </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-[#E2E8F0]">
-            <p className="text-[#64748B] text-sm mb-1">Avg Gait Score</p>
-            <p className="text-[#0F172A] text-2xl" style={{ fontWeight: 600 }}>85</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-[#E2E8F0]">
-            <p className="text-[#64748B] text-sm mb-1">Avg Sleep</p>
-            <p className="text-[#0F172A] text-2xl" style={{ fontWeight: 600 }}>7.0h</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-[#E2E8F0]">
-            <p className="text-[#64748B] text-sm mb-1">Avg Steps</p>
-            <p className="text-[#0F172A] text-2xl" style={{ fontWeight: 600 }}>7,405</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-[#E2E8F0]">
-            <p className="text-[#64748B] text-sm mb-1">Days Tracked</p>
-            <p className="text-[#0F172A] text-2xl" style={{ fontWeight: 600 }}>{dailyRecords.length}</p>
-          </div>
-        </div>
-
-        {/* Daily Records */}
         <div className="space-y-4">
           {dailyRecords.map((record, index) => {
             const isExpanded = expandedRecords.has(record.date);
@@ -249,7 +146,6 @@ export function History() {
 
             return (
               <div key={record.date} className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] overflow-hidden">
-                {/* Summary Header */}
                 <div
                   onClick={() => toggleRecord(record.date)}
                   className="p-6 cursor-pointer hover:bg-[#F8FAFC] transition-colors"
@@ -267,127 +163,11 @@ export function History() {
                       <ChevronDown className="w-5 h-5 text-[#64748B]" />
                     )}
                   </div>
-
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#64748B] text-sm">Gait</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#0F172A]">{record.gaitScore}</span>
-                        {previousRecord && getComparisonIcon(record.gaitScore, previousRecord.gaitScore)}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#64748B] text-sm">Tremor</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#0F172A]">{record.tremorLevel}</span>
-                        {previousRecord && getComparisonIcon(record.tremorLevel, previousRecord.tremorLevel)}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#64748B] text-sm">Voice</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#0F172A]">{record.voiceStability}</span>
-                        {previousRecord && getComparisonIcon(record.voiceStability, previousRecord.voiceStability)}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#64748B] text-sm">Sleep</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#0F172A]">{record.sleepHours}h</span>
-                        {previousRecord && getComparisonIcon(record.sleepHours, previousRecord.sleepHours)}
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Detailed Information */}
                 {isExpanded && (
-                  <div className="border-t border-[#E2E8F0] p-6 space-y-6">
-                    {/* Vital Metrics */}
-                    <div>
-                      <h4 className="text-[#0F172A] mb-3" style={{ fontWeight: 600 }}>Vital Metrics</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="p-3 bg-[#F8FAFC] rounded-lg">
-                          <p className="text-[#64748B] text-sm">Heart Rate</p>
-                          <p className="text-[#0F172A] text-lg">{record.heartRate} bpm</p>
-                        </div>
-                        <div className="p-3 bg-[#F8FAFC] rounded-lg">
-                          <p className="text-[#64748B] text-sm">Steps</p>
-                          <p className="text-[#0F172A] text-lg">{record.steps.toLocaleString()}</p>
-                        </div>
-                        <div className="p-3 bg-[#F8FAFC] rounded-lg">
-                          <p className="text-[#64748B] text-sm">Sleep Duration</p>
-                          <p className="text-[#0F172A] text-lg">{record.sleepHours} hours</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Medications */}
-                    <div>
-                      <h4 className="text-[#0F172A] mb-3" style={{ fontWeight: 600 }}>Medications</h4>
-                      <div className="space-y-2">
-                        {record.medications.map((med, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg">
-                            <div>
-                              <p className="text-[#0F172A]">{med.name}</p>
-                              <p className="text-[#64748B] text-sm">{med.dosage}</p>
-                            </div>
-                            <span className="text-[#64748B] text-sm">{med.time}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Symptoms */}
-                    <div>
-                      <h4 className="text-[#0F172A] mb-3" style={{ fontWeight: 600 }}>Symptoms</h4>
-                      <div className="space-y-2">
-                        {record.symptoms.map((symptom, idx) => (
-                          <div key={idx} className="flex items-start gap-2 p-3 bg-[#F8FAFC] rounded-lg">
-                            <div className="w-2 h-2 bg-[#F59E0B] rounded-full mt-2" />
-                            <p className="text-[#0F172A]">{symptom}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Activities */}
-                    <div>
-                      <h4 className="text-[#0F172A] mb-3" style={{ fontWeight: 600 }}>Activities</h4>
-                      <div className="space-y-2">
-                        {record.activities.map((activity, idx) => (
-                          <div key={idx} className="flex items-start gap-2 p-3 bg-[#F8FAFC] rounded-lg">
-                            <div className="w-2 h-2 bg-[#22C55E] rounded-full mt-2" />
-                            <p className="text-[#0F172A]">{activity}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Meals */}
-                    <div>
-                      <h4 className="text-[#0F172A] mb-3" style={{ fontWeight: 600 }}>Meals</h4>
-                      <div className="space-y-2">
-                        {record.meals.map((meal, idx) => (
-                          <div key={idx} className="p-3 bg-[#F8FAFC] rounded-lg">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[#0F172A]">{meal.type}</p>
-                              <span className="text-[#64748B] text-sm">{meal.time}</span>
-                            </div>
-                            <p className="text-[#64748B] text-sm">{meal.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Notes */}
-                    <div>
-                      <h4 className="text-[#0F172A] mb-3" style={{ fontWeight: 600 }}>Personal Notes</h4>
-                      <div className="p-4 bg-[#F8FAFC] rounded-lg">
-                        <p className="text-[#0F172A]">{record.notes}</p>
-                      </div>
-                    </div>
+                  <div className="border-t border-[#E2E8F0] p-6">
+                    <p className="text-[#0F172A]">Notes: {record.notes}</p>
                   </div>
                 )}
               </div>
