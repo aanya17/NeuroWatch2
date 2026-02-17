@@ -4,6 +4,9 @@ import { Activity, Mail, User, Lock } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { BACKEND_URL } from "../../config";
 
+const FIREBASE_URL =
+  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/users.json";
+
 export function Signup() {
   const navigate = useNavigate();
   const { signup } = useAuth();
@@ -24,30 +27,53 @@ export function Signup() {
     setError('');
   };
 
- const handleSignup = (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (
-    !formData.fullName ||
-    !formData.email ||
-    !formData.username ||
-    !formData.password
-  ) {
-    setError("Please fill all fields");
-    return;
-  }
+    if (
+      !formData.fullName ||
+      !formData.email ||
+      !formData.username ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
+      setError("Please fill all fields");
+      return;
+    }
 
-  // Save user locally
-  localStorage.setItem("user", JSON.stringify(formData));
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
 
-  navigate("/dashboard");
-};
+    try {
+      const response = await fetch(FIREBASE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          username: formData.username,
+          password: formData.password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to signup");
+      }
+
+      navigate("/dashboard");
+    } catch (err) {
+      setError("Something went wrong. Try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC', fontFamily: 'Inter, sans-serif' }}>
       <div className="w-full max-w-md px-6">
         <div className="bg-white rounded-2xl shadow-lg p-8">
-          {/* Logo and App Name */}
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-[#2563EB] rounded-full flex items-center justify-center mb-4">
               <Activity className="w-8 h-8 text-white" />
@@ -56,7 +82,6 @@ export function Signup() {
             <p className="text-[#64748B]">Join NeuroWatch today</p>
           </div>
 
-          {/* Signup Form */}
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label htmlFor="fullName" className="block text-[#0F172A] mb-2">
@@ -167,7 +192,6 @@ export function Signup() {
             </button>
           </form>
 
-          {/* Login Link */}
           <div className="mt-6 text-center">
             <p className="text-[#64748B]">
               Already have an account?{' '}
