@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router';
 import { Activity } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 
+const FIREBASE_URL =
+  "https://neurowatch-b3b08-default-rtdb.firebaseio.com/users.json";
+
 export function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -10,14 +13,35 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = login(username, password);
-    
-    if (success) {
-      navigate('/dashboard');
-    } else {
-      setError('Invalid username or password');
+
+    try {
+      const res = await fetch(FIREBASE_URL);
+      const data = await res.json();
+
+      if (!data) {
+        setError("No users found");
+        return;
+      }
+
+      const users = Object.entries(data);
+
+      const matchedUser = users.find(([_, value]: any) => {
+        return (
+          (value.username === username || value.email === username) &&
+          value.password === password
+        );
+      });
+
+      if (matchedUser) {
+        navigate('/dashboard');
+      } else {
+        setError('Invalid username or password');
+      }
+
+    } catch (err) {
+      setError("Something went wrong. Try again.");
     }
   };
 
@@ -25,7 +49,7 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC', fontFamily: 'Inter, sans-serif' }}>
       <div className="w-full max-w-md px-6">
         <div className="bg-white rounded-2xl shadow-lg p-8">
-          {/* Logo and App Name */}
+          
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-[#2563EB] rounded-full flex items-center justify-center mb-4">
               <Activity className="w-8 h-8 text-white" />
@@ -34,7 +58,6 @@ export function Login() {
             <p className="text-[#64748B]">AI-Powered Neurodegenerative Monitoring</p>
           </div>
 
-          {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label htmlFor="username" className="block text-[#0F172A] mb-2">
@@ -72,7 +95,6 @@ export function Login() {
               />
             </div>
 
-            {/* Forgot Password Link */}
             <div className="flex justify-end">
               <button
                 type="button"
@@ -97,7 +119,6 @@ export function Login() {
             </button>
           </form>
 
-          {/* Signup Link */}
           <div className="mt-6 text-center">
             <p className="text-[#64748B]">
               Don't have an account?{' '}
@@ -109,6 +130,7 @@ export function Login() {
               </button>
             </p>
           </div>
+
         </div>
       </div>
     </div>
