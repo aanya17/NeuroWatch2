@@ -5,11 +5,13 @@ import { database } from "../../firebase";
 import {
   Activity,
   Heart,
-  AlertCircle,
   Brain,
   Footprints,
-  TrendingUp,
   Watch,
+  Wind,
+  Moon,
+  AlertTriangle,
+  TrendingUp,
   Lightbulb,
 } from "lucide-react";
 
@@ -49,7 +51,10 @@ export function Dashboard() {
   const [muscleMovement, setMuscleMovement] = useState<string>("--");
   const [gait, setGait] = useState<number | null>(null);
   const [voice, setVoice] = useState<number | null>(null);
-  const [tremor, setTremor] = useState<string>("--");
+  const [tremor, setTremor] = useState<number | null>(null);
+  const [breathing, setBreathing] = useState<number | null>(null);
+  const [sleepQuality, setSleepQuality] = useState<number | null>(null);
+  const [fallDetected, setFallDetected] = useState<boolean>(false);
 
   useEffect(() => {
     const watchRef = ref(database, "watch_data");
@@ -60,36 +65,58 @@ export function Dashboard() {
         setGait(data.gait ?? null);
         setHeartRate(data.heartRate ?? null);
         setMuscleMovement(data.muscleMovement ?? "--");
-        setTremor(data.tremor ?? "--");
+        setTremor(data.tremor ?? null);
         setVoice(data.voice ?? null);
+        setBreathing(data.breathing ?? null);
+        setSleepQuality(data.sleepQuality ?? null);
+        setFallDetected(data.fallDetected ?? false);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Chart Data (Live)
+  // 🔥 Dynamic Risk Calculation
+  const calculateRisk = () => {
+    let score = 0;
+
+    if (tremor && tremor > 60) score += 2;
+    if (gait && gait < 60) score += 2;
+    if (voice && voice < 70) score += 1;
+    if (heartRate && (heartRate > 110 || heartRate < 55)) score += 1;
+    if (fallDetected) score += 3;
+
+    if (score >= 6) return "High Risk";
+    if (score >= 3) return "Moderate Risk";
+    return "Low Risk";
+  };
+
+  const riskLevel = calculateRisk();
+
   const progressData = [
     {
       date: "Now",
       gait: gait ?? 0,
-      tremor: tremor === "Low" ? 90 : tremor === "High" ? 40 : 70,
+      tremor: tremor ?? 0,
       voice: voice ?? 0,
-      muscle: muscleMovement === "Normal" ? 85 : 60,
+      muscle: muscleMovement === "Stable" ? 90 : 60,
     },
   ];
 
   return (
-    <div
-      className="min-h-screen px-8 py-10"
-      style={{ backgroundColor: "#F8FAFC" }}
-    >
+    <div className="min-h-screen px-8 py-10 bg-[#F8FAFC]">
       <h1 className="text-3xl font-semibold text-[#0F172A] mb-8">
         Live Health Dashboard
       </h1>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+
+        <MetricCard
+          title="Heart Rate"
+          value={heartRate ? `${heartRate} bpm` : "--"}
+          icon={<Heart size={18} />}
+        />
 
         <MetricCard
           title="Gait Score"
@@ -98,15 +125,9 @@ export function Dashboard() {
         />
 
         <MetricCard
-          title="Muscle Movement"
-          value={muscleMovement}
-          icon={<Activity size={18} />}
-        />
-
-        <MetricCard
-          title="Heart Rate"
-          value={heartRate ? `${heartRate} bpm` : "--"}
-          icon={<Heart size={18} />}
+          title="Tremor Score"
+          value={tremor !== null ? tremor.toString() : "--"}
+          icon={<Watch size={18} />}
         />
 
         <MetricCard
@@ -116,21 +137,34 @@ export function Dashboard() {
         />
 
         <MetricCard
-          title="Tremor Level"
-          value={tremor}
-          icon={<Watch size={18} />}
+          title="Breathing Rate"
+          value={breathing ? `${breathing} rpm` : "--"}
+          icon={<Wind size={18} />}
+        />
+
+        <MetricCard
+          title="Sleep Quality"
+          value={sleepQuality ? `${sleepQuality}%` : "--"}
+          icon={<Moon size={18} />}
+        />
+
+        <MetricCard
+          title="Fall Detected"
+          value={fallDetected ? "Yes ⚠️" : "No"}
+          icon={<AlertTriangle size={18} />}
+        />
+
+        <MetricCard
+          title="Risk Level"
+          value={riskLevel}
+          icon={<Activity size={18} />}
         />
 
       </div>
 
       {/* Progress Chart */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-[#E2E8F0] mb-10">
-        <div className="flex items-center gap-2 mb-6">
-          <Brain size={20} className="text-[#2563EB]" />
-          <h2 className="text-xl font-semibold text-[#0F172A]">
-            Progress Charts
-          </h2>
-        </div>
+        <h2 className="text-xl font-semibold mb-6">Live Progress</h2>
 
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={progressData}>
@@ -149,28 +183,13 @@ export function Dashboard() {
 
       {/* AI Suggestions */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-[#E2E8F0]">
-        <div className="flex items-center gap-2 mb-6">
-          <Lightbulb size={20} className="text-[#2563EB]" />
-          <h2 className="text-xl font-semibold text-[#0F172A]">
-            AI Suggestions
-          </h2>
-        </div>
+        <h2 className="text-xl font-semibold mb-6">AI Insights</h2>
 
-        <div className="space-y-4 text-[#0F172A]">
-          <p className="flex items-start gap-2">
-            <TrendingUp size={16} className="text-green-500 mt-1" />
-            Your gait score updates in real time from the smartwatch.
-          </p>
-
-          <p className="flex items-start gap-2">
-            <Watch size={16} className="text-blue-500 mt-1" />
-            Tremor and muscle data are synced directly from Firebase.
-          </p>
-
-          <p className="flex items-start gap-2">
-            <Heart size={16} className="text-red-500 mt-1" />
-            Heart rate monitoring is active and live.
-          </p>
+        <div className="space-y-3">
+          <p>• Data updates every 3 seconds from smartwatch.</p>
+          <p>• Risk level calculated dynamically from live metrics.</p>
+          <p>• Fall detection instantly increases risk priority.</p>
+          <p>• Tremor and gait directly influence neurological stability score.</p>
         </div>
       </div>
     </div>
